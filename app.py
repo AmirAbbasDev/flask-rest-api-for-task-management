@@ -78,6 +78,36 @@ def check_free_tier_limits(f):
     return decorated_function
 
 
+# Routes
+@app.route("/register", methods=["POST"])
+def register():
+    data = request.get_json()
+    username = data.get("username")
+    password = data.get("password")
+
+    if User.query.filter_by(username=username).first():
+        return jsonify({"error": "User already exists"}), 400
+
+    user = User(username=username, password=password)
+    db.session.add(user)
+    db.session.commit()
+
+    return jsonify({"message": "User created successfully"}), 201
+
+
+@app.route("/login", methods=["POST"])
+def login():
+    data = request.get_json()
+    username = data.get("username")
+    password = data.get("password")
+
+    user = User.query.filter_by(username=username, password=password).first()
+    if user is None:
+        return jsonify({"error": "Invalid credentials"}), 401
+
+    access_token = create_access_token(identity=user.id)
+    return jsonify(access_token=access_token), 200
+
 
 if __name__ == "__main__":
     app.run(debug=True)
