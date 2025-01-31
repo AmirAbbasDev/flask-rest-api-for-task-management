@@ -109,5 +109,43 @@ def login():
     return jsonify(access_token=access_token), 200
 
 
+@app.route("/tasks", method=["GET"])
+@jwt_required
+@check_free_tier_limits
+def get_tasks():
+    page = request.args.get("page", 1, type=int)
+    limit = request.args.get("limit", 10, type=int)
+    status = request.args.get("status")
+    due_date = request.args.get("due_date")
+
+    query = Task.query.filter_by(created_by=get_jwt_identity())
+    if status:
+        query = query.filter_by(status=status)
+    if due_date:
+        query = query.filter_by(due_date=due_date)
+    tasks = query.paginate(page=page, per_page=limit, error_out=False)
+    tasks_data = [
+        {
+            "id": task.id,
+            "title": task.title,
+            "description": task.description,
+            "status": task.status,
+            "due_date": task.due_date.isoformat() if task.due_date else None,
+            "created_at": task.created_at,
+            "created_by": task.created_by,
+        }
+        for task in tasks.items
+    ]
+
+    return jsonify(
+        {
+            "tasks": tasks_data,
+            "page": tasks.page,
+            "limit": tasks.per_page,
+            "total": tasks.total,
+        }
+    ), 200
+
+
 if __name__ == "__main__":
     app.run(debug=True)
