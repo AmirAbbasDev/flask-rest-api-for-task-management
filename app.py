@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from functools import wraps
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import (
     JWTManager,
@@ -51,6 +52,30 @@ class Task(db.Model):
 
 # Create the database
 db.create_all()
+
+
+# Middleware to check free-tier limits
+def check_free_tier_limits(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        if (
+            user.tier == "free"
+            and user.request_count >= TIER_PERMISSIONS["free"]["max_requests"]
+        ):
+            return jsonify(
+                {
+                    "error": "Free tier limit exceeded",
+                    "message": "Upgrade to a paid plain.",
+                }
+            ), 403
+
+        user.request_count += 1
+        db.session.commit()
+        return f(*args, **kwargs)
+
+    return decorated_function
 
 
 
