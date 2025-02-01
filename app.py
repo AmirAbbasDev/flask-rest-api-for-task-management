@@ -21,7 +21,7 @@ app.config["JWT_ACCESS_TOKEN_EXPIRES"] = False  # Token do't expire (for simplic
 # Initialize the extensions
 db = SQLAlchemy(app)
 jwt = JWTManager(app)
-limiter = Limiter(app, key_func=get_remote_address)
+limiter = Limiter(get_remote_address, app=app)
 
 # Define tier permissions
 TIER_PERMISSIONS = {
@@ -51,7 +51,8 @@ class Task(db.Model):
 
 
 # Create the database
-db.create_all()
+with app.app_context():
+    db.create_all()
 
 
 # Middleware to check free-tier limits
@@ -109,7 +110,7 @@ def login():
     return jsonify(access_token=access_token), 200
 
 
-@app.route("/tasks", method=["GET"])
+@app.route("/tasks", methods=["GET"])
 @jwt_required
 @check_free_tier_limits
 def get_tasks():
